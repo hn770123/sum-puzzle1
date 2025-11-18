@@ -1,0 +1,19 @@
+# 一時ファイル
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# エディタ固有のファイル
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# テスト用ファイル
+test/
+*.test.js
+
+# SVGソースファイル（PNGを使用するため）
+icon.svg

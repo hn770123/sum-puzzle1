@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="縦と横の計が分かっている数独風パズルゲーム">
+    <meta name="theme-color" content="#4CAF50">
+    <title>Sum Puzzle - 合計パズル</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sum Puzzle</h1>
+            <p class="subtitle">縦と横の合計から数字を推測しよう</p>
+        </header>
+
+        <div class="controls">
+            <button id="installBtn" class="btn btn-install" style="display: none;">
+                📱 インストール
+            </button>
+            <button id="regenerateBtn" class="btn btn-primary">
+                🔄 新しいパズル
+            </button>
+        </div>
+
+        <div class="difficulty-display">
+            <span>難易度: <strong id="difficultyLevel">-</strong></span>
+        </div>
+
+        <div id="progressBar" class="progress-bar" style="display: none;">
+            <div class="progress-bar-fill"></div>
+            <span class="progress-text">生成中...</span>
+        </div>
+
+        <div id="puzzleContainer" class="puzzle-container">
+            <!-- パズルグリッドがここに動的に生成されます -->
+        </div>
+
+        <div class="instructions">
+            <h3>遊び方</h3>
+            <ul>
+                <li>空白のマスに1～9の数字を入力します</li>
+                <li>各行と各列の合計が、端に表示されている数字と一致するようにします</li>
+                <li>すべてのマスを正しく埋めるとクリアです</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="puzzle.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
