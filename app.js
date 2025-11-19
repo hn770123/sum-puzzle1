@@ -7,6 +7,7 @@
 let currentPuzzle = null; // 現在のパズルインスタンス
 let puzzleData = null; // 現在のパズルデータ
 let deferredPrompt = null; // PWAインストールプロンプト
+let selectedCell = null; // 現在選択されているセル
 
 /**
  * DOMの初期化が完了したら実行
@@ -21,6 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeApp() {
     // ボタンのイベントリスナーを設定
     document.getElementById('regenerateBtn').addEventListener('click', generateNewPuzzle);
+    
+    // 数字ボタンのイベントリスナーを設定
+    setupNumberButtons();
+    
+    // オーバーレイの閉じるボタンを設定
+    document.getElementById('closeOverlayBtn').addEventListener('click', () => {
+        hideCongratsOverlay();
+        generateNewPuzzle();
+    });
     
     // PWAインストールの設定
     setupPWA();
@@ -66,9 +76,26 @@ function setupPWA() {
 }
 
 /**
+ * 数字ボタンの設定
+ */
+function setupNumberButtons() {
+    const numberButtons = document.querySelectorAll('.number-btn');
+    numberButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (selectedCell) {
+                const number = parseInt(btn.dataset.number);
+                handleNumberSelection(number);
+            }
+        });
+    });
+}
+
+/**
  * 新しいパズルを生成
  */
 async function generateNewPuzzle() {
+    // 選択をリセット
+    selectedCell = null;
     const progressBar = document.getElementById('progressBar');
     const progressFill = progressBar.querySelector('.progress-bar-fill');
     const regenerateBtn = document.getElementById('regenerateBtn');
@@ -154,22 +181,16 @@ function renderPuzzle(data) {
             cell.className = 'puzzle-cell';
             
             if (data.puzzle[row][col] === null) {
-                // 空白セル - 入力フィールドを作成
+                // 空白セル - クリック可能な要素として作成
                 cell.classList.add('input-cell');
                 cell.dataset.row = row;
                 cell.dataset.col = col;
+                cell.style.cursor = 'pointer';
                 
-                // 入力フィールドを作成
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'number-input';
-                input.maxLength = 1;
-                input.dataset.row = row;
-                input.dataset.col = col;
-                input.addEventListener('input', (e) => handleInput(e, row, col));
-                input.addEventListener('keydown', (e) => handleKeyDown(e));
-                
-                cell.appendChild(input);
+                // クリックイベントを追加
+                cell.addEventListener('click', () => {
+                    selectCell(cell, row, col);
+                });
             } else {
                 // 埋まっているセル
                 cell.textContent = data.puzzle[row][col];
@@ -184,60 +205,66 @@ function renderPuzzle(data) {
 }
 
 /**
- * 入力フィールドの入力処理
- * @param {Event} e - 入力イベント
+ * セルを選択
+ * @param {HTMLElement} cell - セル要素
  * @param {number} row - 行インデックス
  * @param {number} col - 列インデックス
  */
-function handleInput(e, row, col) {
-    const input = e.target;
-    const value = input.value;
-    
-    // 数字以外は削除
-    if (!/^[1-9]$/.test(value)) {
-        input.value = '';
+function selectCell(cell, row, col) {
+    // 既に正解済みのセルは選択できない
+    if (cell.classList.contains('correct')) {
         return;
     }
     
-    const numValue = parseInt(value);
+    // 以前の選択を解除
+    if (selectedCell) {
+        selectedCell.classList.remove('selected');
+    }
+    
+    // 新しいセルを選択
+    selectedCell = cell;
+    selectedCell.classList.add('selected');
+}
+
+/**
+ * 数字が選択された時の処理
+ * @param {number} number - 選択された数字
+ */
+function handleNumberSelection(number) {
+    if (!selectedCell) return;
+    
+    const row = parseInt(selectedCell.dataset.row);
+    const col = parseInt(selectedCell.dataset.col);
     const correctValue = puzzleData.solution[row][col];
-    const cell = input.closest('.puzzle-cell');
     
     // 既存のクラスをリセット
-    cell.classList.remove('correct', 'incorrect');
+    selectedCell.classList.remove('incorrect');
     
     // 正解チェック
-    if (numValue === correctValue) {
-        cell.classList.add('correct');
-        input.disabled = true;
+    if (number === correctValue) {
+        selectedCell.textContent = number;
+        selectedCell.classList.add('correct', 'filled');
+        selectedCell.classList.remove('selected');
+        selectedCell.style.cursor = 'default';
+        
+        // イベントリスナーを削除
+        const newCell = selectedCell.cloneNode(true);
+        selectedCell.parentNode.replaceChild(newCell, selectedCell);
+        selectedCell = null;
         
         // すべて正解かチェック
         setTimeout(() => {
             checkCompletion();
         }, 300);
     } else {
-        cell.classList.add('incorrect');
+        selectedCell.classList.add('incorrect');
         
-        // 少し待ってから入力をクリア
+        // 少し待ってから不正解表示をクリア
         setTimeout(() => {
-            input.value = '';
-            cell.classList.remove('incorrect');
+            if (selectedCell) {
+                selectedCell.classList.remove('incorrect');
+            }
         }, 500);
-    }
-}
-
-/**
- * キーボード入力の処理
- * @param {KeyboardEvent} e - キーボードイベント
- */
-function handleKeyDown(e) {
-    // Enterキーで次の入力欄に移動
-    if (e.key === 'Enter') {
-        const inputs = Array.from(document.querySelectorAll('.number-input:not([disabled])'));
-        const currentIndex = inputs.indexOf(e.target);
-        if (currentIndex >= 0 && currentIndex < inputs.length - 1) {
-            inputs[currentIndex + 1].focus();
-        }
     }
 }
 
@@ -258,7 +285,110 @@ function checkCompletion() {
     
     if (allCorrect && inputCells.length > 0) {
         setTimeout(() => {
-            alert('🎉 おめでとうございます！パズルをクリアしました！');
+            showCongratsOverlay();
         }, 300);
     }
+}
+
+/**
+ * お祝いオーバーレイを表示
+ */
+function showCongratsOverlay() {
+    const overlay = document.getElementById('congratsOverlay');
+    overlay.style.display = 'flex';
+    
+    // 紙吹雪を開始
+    startConfetti();
+}
+
+/**
+ * お祝いオーバーレイを非表示
+ */
+function hideCongratsOverlay() {
+    const overlay = document.getElementById('congratsOverlay');
+    overlay.style.display = 'none';
+    
+    // 紙吹雪を停止
+    stopConfetti();
+}
+
+/**
+ * 紙吹雪アニメーション
+ */
+let confettiAnimationId = null;
+let confettiParticles = [];
+
+function startConfetti() {
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // キャンバスサイズを設定
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // 紙吹雪の色
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+    
+    // パーティクルを作成
+    confettiParticles = [];
+    for (let i = 0; i < 150; i++) {
+        confettiParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            r: Math.random() * 6 + 4,
+            d: Math.random() * 150 + 10,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            tilt: Math.floor(Math.random() * 10) - 10,
+            tiltAngleIncremental: (Math.random() * 0.07) + 0.05,
+            tiltAngle: 0
+        });
+    }
+    
+    // アニメーションループ
+    function updateConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        confettiParticles.forEach((p, index) => {
+            p.tiltAngle += p.tiltAngleIncremental;
+            p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+            p.x += Math.sin(p.d);
+            p.tilt = Math.sin(p.tiltAngle - (index / 3)) * 15;
+            
+            if (p.y > canvas.height) {
+                confettiParticles[index] = {
+                    x: Math.random() * canvas.width,
+                    y: -20,
+                    r: p.r,
+                    d: p.d,
+                    color: p.color,
+                    tilt: p.tilt,
+                    tiltAngleIncremental: p.tiltAngleIncremental,
+                    tiltAngle: p.tiltAngle
+                };
+            }
+            
+            ctx.beginPath();
+            ctx.lineWidth = p.r / 2;
+            ctx.strokeStyle = p.color;
+            ctx.moveTo(p.x + p.tilt + p.r, p.y);
+            ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+            ctx.stroke();
+        });
+        
+        confettiAnimationId = requestAnimationFrame(updateConfetti);
+    }
+    
+    updateConfetti();
+}
+
+function stopConfetti() {
+    if (confettiAnimationId) {
+        cancelAnimationFrame(confettiAnimationId);
+        confettiAnimationId = null;
+    }
+    confettiParticles = [];
+    
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
