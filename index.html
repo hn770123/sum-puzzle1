@@ -39,14 +39,36 @@
             <!-- パズルグリッドがここに動的に生成されます -->
         </div>
 
+        <div id="numberButtons" class="number-buttons">
+            <button class="number-btn" data-number="1">1</button>
+            <button class="number-btn" data-number="2">2</button>
+            <button class="number-btn" data-number="3">3</button>
+            <button class="number-btn" data-number="4">4</button>
+            <button class="number-btn" data-number="5">5</button>
+            <button class="number-btn" data-number="6">6</button>
+            <button class="number-btn" data-number="7">7</button>
+            <button class="number-btn" data-number="8">8</button>
+            <button class="number-btn" data-number="9">9</button>
+        </div>
+
         <div class="instructions">
             <h3>遊び方</h3>
             <ul>
-                <li>空白のマスに1～9の数字を入力します</li>
+                <li>空白のマスをタップして、下の数字ボタンから1～9を選択します</li>
                 <li>各行と各列の合計が、端に表示されている数字と一致するようにします</li>
                 <li>すべてのマスを正しく埋めるとクリアです</li>
             </ul>
         </div>
+    </div>
+
+    <!-- クリア時のオーバーレイ -->
+    <div id="congratsOverlay" class="congrats-overlay" style="display: none;">
+        <div class="congrats-content">
+            <h1 class="congrats-text">Congratulations!!</h1>
+            <p class="congrats-message">🎉 パズルをクリアしました！ 🎉</p>
+            <button id="closeOverlayBtn" class="btn btn-primary">次のパズルへ</button>
+        </div>
+        <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
     </div>
 
     <script src="puzzle.js"></script>
