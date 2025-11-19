@@ -78,7 +78,7 @@ async function generateNewPuzzle() {
     regenerateBtn.disabled = true;
     
     // パズルインスタンスを作成
-    currentPuzzle = new SumPuzzle(4);
+    currentPuzzle = new SumPuzzle(5);
     
     // 進捗コールバック
     const onProgress = (percent) => {
@@ -86,8 +86,8 @@ async function generateNewPuzzle() {
     };
     
     try {
-        // パズルを生成（空白セルは6つ）
-        await currentPuzzle.generate(6, onProgress);
+        // パズルを生成（空白セルは10個）
+        await currentPuzzle.generate(10, onProgress);
         
         // わずかな待機（UIの更新を見せるため）
         await new Promise(resolve => setTimeout(resolve, 200));
