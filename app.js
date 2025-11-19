@@ -113,6 +113,38 @@ async function generateNewPuzzle() {
 }
 
 /**
+ * 正解に近い選択肢を生成
+ * @param {number} correctAnswer - 正解の数値
+ * @returns {Array<number>} 正解を含む4つの選択肢
+ */
+function generateChoices(correctAnswer) {
+    const choices = [correctAnswer];
+    const used = new Set([correctAnswer]);
+    
+    // 正解に近い3つの不正解を生成
+    while (choices.length < 4) {
+        // 正解から±1〜3の範囲でランダムに生成
+        const offset = Math.floor(Math.random() * 3) + 1; // 1, 2, 3
+        const direction = Math.random() < 0.5 ? -1 : 1; // ±
+        let candidate = correctAnswer + (offset * direction);
+        
+        // 1〜9の範囲内で、まだ使われていない数字のみ追加
+        if (candidate >= 1 && candidate <= 9 && !used.has(candidate)) {
+            choices.push(candidate);
+            used.add(candidate);
+        }
+    }
+    
+    // 配列をシャッフル
+    for (let i = choices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+    
+    return choices;
+}
+
+/**
  * パズルをHTMLに描画
  * @param {object} data - パズルデータ
  */
@@ -152,18 +184,31 @@ function renderPuzzle(data) {
             cell.className = 'puzzle-cell';
             
             if (data.puzzle[row][col] === null) {
-                // 空白セル - 入力フィールドを作成
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.maxLength = 1;
-                input.dataset.row = row;
-                input.dataset.col = col;
+                // 空白セル - 4択ボタンを作成
+                cell.classList.add('choice-cell');
+                cell.dataset.row = row;
+                cell.dataset.col = col;
                 
-                // 入力イベント
-                input.addEventListener('input', handleInput);
-                input.addEventListener('keydown', handleKeyDown);
+                // 正解の数値を取得
+                const correctAnswer = data.solution[row][col];
                 
-                cell.appendChild(input);
+                // 選択肢を生成
+                const choices = generateChoices(correctAnswer);
+                
+                // 4択ボタンを作成
+                const choicesContainer = document.createElement('div');
+                choicesContainer.className = 'choices-container';
+                
+                choices.forEach(choice => {
+                    const button = document.createElement('button');
+                    button.className = 'choice-btn';
+                    button.textContent = choice;
+                    button.dataset.value = choice;
+                    button.addEventListener('click', () => handleChoice(button, row, col, choice));
+                    choicesContainer.appendChild(button);
+                });
+                
+                cell.appendChild(choicesContainer);
             } else {
                 // 埋まっているセル
                 cell.textContent = data.puzzle[row][col];
@@ -178,76 +223,53 @@ function renderPuzzle(data) {
 }
 
 /**
- * 入力フィールドの入力処理
- * @param {Event} e - 入力イベント
+ * 選択肢ボタンのクリック処理
+ * @param {HTMLElement} button - クリックされたボタン
+ * @param {number} row - 行インデックス
+ * @param {number} col - 列インデックス
+ * @param {number} value - 選択された値
  */
-function handleInput(e) {
-    const input = e.target;
-    const value = input.value;
+function handleChoice(button, row, col, value) {
+    const cell = button.closest('.puzzle-cell');
+    const correctValue = puzzleData.solution[row][col];
     
-    // 数字のみを許可（1-9）
-    if (value && !/^[1-9]$/.test(value)) {
-        input.value = '';
+    // すでに選択されているセルは無視
+    if (cell.classList.contains('selected')) {
         return;
     }
     
-    // 入力があれば検証
-    if (value) {
-        const row = parseInt(input.dataset.row);
-        const col = parseInt(input.dataset.col);
-        const numValue = parseInt(value);
-        
-        validateInput(input, row, col, numValue);
-        
-        // 次の入力フィールドに自動フォーカス
-        focusNextInput(input);
-    }
-}
-
-/**
- * キーボード操作の処理
- * @param {Event} e - キーイベント
- */
-function handleKeyDown(e) {
-    const input = e.target;
+    // 選択状態にする
+    cell.classList.add('selected');
     
-    // 矢印キーで移動
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault();
-        navigateInputs(input, e.key);
-    }
-}
-
-/**
- * 入力値を検証
- * @param {HTMLElement} input - 入力要素
- * @param {number} row - 行インデックス
- * @param {number} col - 列インデックス
- * @param {number} value - 入力値
- */
-function validateInput(input, row, col, value) {
-    const cell = input.parentElement;
-    const correctValue = puzzleData.solution[row][col];
+    // 選択肢ボタンを無効化
+    const buttons = cell.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('disabled');
+    });
+    
+    // クリックされたボタンを選択状態にする
+    button.classList.add('selected');
     
     // 正解チェック
     if (value === correctValue) {
-        cell.classList.remove('incorrect');
         cell.classList.add('correct');
-        
-        // アニメーション後にクラスを削除
-        setTimeout(() => {
-            cell.classList.remove('correct');
-        }, 500);
+        button.classList.add('correct');
         
         // すべて正解かチェック
-        checkCompletion();
-    } else {
-        cell.classList.remove('correct');
-        cell.classList.add('incorrect');
-        
         setTimeout(() => {
-            cell.classList.remove('incorrect');
-        }, 500);
+            checkCompletion();
+        }, 300);
+    } else {
+        cell.classList.add('incorrect');
+        button.classList.add('incorrect');
+        
+        // 正解のボタンを表示
+        buttons.forEach(btn => {
+            if (parseInt(btn.dataset.value) === correctValue) {
+                btn.classList.add('correct-answer');
+            }
+        });
     }
 }
 
@@ -255,77 +277,26 @@ function validateInput(input, row, col, value) {
  * パズルの完成をチェック
  */
 function checkCompletion() {
-    const inputs = document.querySelectorAll('.puzzle-cell input');
+    const choiceCells = document.querySelectorAll('.puzzle-cell.choice-cell');
     let allCorrect = true;
     
-    for (const input of inputs) {
-        if (!input.value) {
+    for (const cell of choiceCells) {
+        // まだ選択されていないセルがある
+        if (!cell.classList.contains('selected')) {
             allCorrect = false;
             break;
         }
         
-        const row = parseInt(input.dataset.row);
-        const col = parseInt(input.dataset.col);
-        const value = parseInt(input.value);
-        
-        if (value !== puzzleData.solution[row][col]) {
+        // 不正解のセルがある
+        if (cell.classList.contains('incorrect')) {
             allCorrect = false;
             break;
         }
     }
     
-    if (allCorrect) {
+    if (allCorrect && choiceCells.length > 0) {
         setTimeout(() => {
             alert('🎉 おめでとうございます！パズルをクリアしました！');
         }, 300);
-    }
-}
-
-/**
- * 次の入力フィールドにフォーカス
- * @param {HTMLElement} currentInput - 現在の入力要素
- */
-function focusNextInput(currentInput) {
-    const inputs = Array.from(document.querySelectorAll('.puzzle-cell input'));
-    const currentIndex = inputs.indexOf(currentInput);
-    
-    if (currentIndex < inputs.length - 1) {
-        inputs[currentIndex + 1].focus();
-    }
-}
-
-/**
- * 矢印キーでの入力フィールド間の移動
- * @param {HTMLElement} input - 現在の入力要素
- * @param {string} direction - 方向キー
- */
-function navigateInputs(input, direction) {
-    const row = parseInt(input.dataset.row);
-    const col = parseInt(input.dataset.col);
-    let newRow = row;
-    let newCol = col;
-    
-    switch (direction) {
-        case 'ArrowUp':
-            newRow = Math.max(0, row - 1);
-            break;
-        case 'ArrowDown':
-            newRow = Math.min(puzzleData.size - 1, row + 1);
-            break;
-        case 'ArrowLeft':
-            newCol = Math.max(0, col - 1);
-            break;
-        case 'ArrowRight':
-            newCol = Math.min(puzzleData.size - 1, col + 1);
-            break;
-    }
-    
-    // 新しい位置の入力フィールドを探す
-    const newInput = document.querySelector(
-        `.puzzle-cell input[data-row="${newRow}"][data-col="${newCol}"]`
-    );
-    
-    if (newInput) {
-        newInput.focus();
     }
 }
